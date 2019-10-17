@@ -36,6 +36,8 @@ public abstract class DefaultVersionedPlayRunAdapter implements VersionedPlayRun
     private final AtomicReference<ClassLoader> currentClassloader = new AtomicReference<ClassLoader>();
     private final Queue<SoftReference<Closeable>> loadersToClose = new ConcurrentLinkedQueue<SoftReference<Closeable>>();
 
+    private boolean forceReload = false;
+
     protected abstract Class<?> getBuildLinkClass(ClassLoader classLoader) throws ClassNotFoundException;
 
     protected abstract Class<?> getDocHandlerFactoryClass(ClassLoader classLoader) throws ClassNotFoundException;
@@ -61,7 +63,9 @@ public abstract class DefaultVersionedPlayRunAdapter implements VersionedPlayRun
                     // We have no way of knowing when the loader is actually done with, so we use the request after the request
                     // that triggered the reload as the trigger point to close the replaced loader.
                     closeOldLoaders();
-                    if (result.changed) {
+                    if (result.changed || forceReload) {
+                        forceReload = false;
+
                         ClassPath classpath = DefaultClassPath.of(applicationJar).plus(DefaultClassPath.of(changingClasspath));
                         URLClassLoader currentClassLoader = new URLClassLoader(classpath.getAsURLArray(), assetsClassLoader);
                         storeClassLoader(currentClassLoader);
@@ -81,6 +85,8 @@ public abstract class DefaultVersionedPlayRunAdapter implements VersionedPlayRun
                     }
                 } else if (method.getName().equals("settings")) {
                     return new HashMap<String, String>();
+                } else if (method.getName().equals("forceReload")) {
+                    forceReload = true;
                 }
                 //TODO: all methods
                 return null;
